@@ -78,6 +78,7 @@ def visualization(Camera2World_Transform_Matrixs, points3D_df):
     ls.colors=o3d.utility.Vector3dVector(colors)
 
     cameras = []
+    traj_pts = []
     for T in Camera2World_Transform_Matrixs:
         pts = np.asarray(ls.points)
         pts_w = (np.hstack([pts, np.ones((pts.shape[0], 1))]) @ T.T)[:,:-1]
@@ -87,8 +88,16 @@ def visualization(Camera2World_Transform_Matrixs, points3D_df):
         )
         g.colors=ls.colors
         cameras.append(g)
+        traj_pts.append(pts_w[0])
+    traj_lines = [[i, i + 1] for i in range(len(traj_pts) - 1)]
+    traj = o3d.geometry.LineSet(
+        points=o3d.utility.Vector3dVector(traj_pts),
+        lines=o3d.utility.Vector2iVector(traj_lines),
+    )
+    traj.colors=o3d.utility.Vector3dVector([[0, 0, 1]] * len(traj_lines))
+
     o3d.visualization.draw_geometries(
-        [pcd, *cameras],
+        [pcd, traj, *cameras],
         front=[0.11830943823025981, -0.011194892767812936, -0.99291366754696131],
         lookat=[1.216128554086632, -1.0611115902268715, -4.3286562441519019],
         up=[-0.10799062623784268, -0.9941505285954122, -0.0016586555462688708],
@@ -220,9 +229,13 @@ if __name__ == "__main__":
         # TODO: calculate camera pose in world coordinate system
         c2w = np.vstack([np.hstack([r.T, -r.T @ t]), [0, 0, 0, 1]])
         Camera2World_Transform_Matrixs.append(c2w)
+    Camera2World_Transform_Matrixs = np.array(Camera2World_Transform_Matrixs)[np.argsort(frameid_list)]
     visualization(Camera2World_Transform_Matrixs, points3D_df)
 
+    cv2.namedWindow("AR video")
+    cv2.moveWindow("AR video", 500, 0)
     for i in np.argsort(frameid_list):
         cv2.imshow("AR video", img_list[i])
         if cv2.waitKey(30) & 0xFF == 27:
             break
+    cv2.destroyAllWindows()
